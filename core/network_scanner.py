@@ -20,6 +20,22 @@ def get_network_range():
     return str(network)
 
 
+def get_all_local_subnets():
+    subnets = []
+
+    for iface in netifaces.interfaces():
+        addrs = netifaces.ifaddresses(iface)
+        if netifaces.AF_INET in addrs:
+            for addr in addrs[netifaces.AF_INET]:
+                ip = addr.get('addr')
+                netmask = addr.get('netmask')
+                if ip and netmask:
+                    network = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
+                    subnets.append(str(network))
+
+    return list(set(subnets))
+
+
 def scan_network(target_ip=None):
     if target_ip is None:
         target_ip = get_network_range()

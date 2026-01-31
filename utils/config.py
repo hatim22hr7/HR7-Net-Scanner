@@ -1,14 +1,5 @@
-"""
-HR7 Net Scanner - Configuration File
-"""
-
-# الشبكة الافتراضية
-DEFAULT_TARGET = "192.168.1.0/24"
-
-# Timeout عام (بالثواني)
 SOCKET_TIMEOUT = 0.5
 
-# أشهر المنافذ (Top Ports)
 COMMON_PORTS = {
     21: "FTP",
     22: "SSH",
@@ -23,7 +14,6 @@ COMMON_PORTS = {
     3389: "RDP"
 }
 
-# MAC Blacklist (للتجربة)
 BLACKLIST_MACS = [
     "00:11:22:33:44:55"
 ]

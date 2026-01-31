@@ -6,12 +6,10 @@ import tkinter as tk
 import threading
 import time
 
-from core.network_scanner import scan_network
+from core.network_scanner import scan_network, get_all_local_subnets, get_network_range
 from core.port_scanner import scan_ports
 from core.os_detector import detect_os
 from core.report_manager import save_scan_report
-from utils.config import DEFAULT_TARGET
-
 
 # ===== Colors =====
 BG = "#0b0b0b"
@@ -19,6 +17,9 @@ RED = "#b30000"
 RED_DARK = "#7a0000"
 TXT = "#f2f2f2"
 GREEN = "#6bff6b"
+
+# ===== Default target (dynamically) =====
+DEFAULT_TARGET = get_network_range()
 
 
 class HR7ScannerGUI:
