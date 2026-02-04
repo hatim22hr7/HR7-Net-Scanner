@@ -1,15 +1,17 @@
 """
 HR7 Network Scanner - Professional Red Theme GUI
+Adaptive network detection (Ethernet & Wi-Fi)
 """
 
 import tkinter as tk
 import threading
 import time
 
-from core.network_scanner import scan_network, get_all_local_subnets, get_network_range
+from core.network_scanner import scan_network, get_active_network
 from core.port_scanner import scan_ports
 from core.os_detector import detect_os
 from core.report_manager import save_scan_report
+
 
 # ===== Colors =====
 BG = "#0b0b0b"
@@ -17,9 +19,6 @@ RED = "#b30000"
 RED_DARK = "#7a0000"
 TXT = "#f2f2f2"
 GREEN = "#6bff6b"
-
-# ===== Default target (dynamically) =====
-DEFAULT_TARGET = get_network_range()
 
 
 class HR7ScannerGUI:
@@ -31,7 +30,15 @@ class HR7ScannerGUI:
 
         self.devices = []
         self.stop_loading = threading.Event()
+        self.stop_scan = threading.Event()
+        self.scanning = False
 
+        # ===== Get active network automatically =====
+        try:
+            self.target = get_active_network()
+        except Exception:
+            self.target = "Unknown"
+        
         self.build_ui()
 
     def build_ui(self):
@@ -52,13 +59,13 @@ class HR7ScannerGUI:
         ).pack(side="left")
 
         # ===== Controls =====
-        controls = tk.Frame(self.root, bg=BG)
+        controls = tk.Frame(header, bg=BG)
         controls.pack(fill="x", padx=15, pady=5)
 
         self.scan_btn = tk.Button(
             controls,
             text="SCAN NETWORK",
-            command=self.start_scan,
+            command=self.toggle_scan,
             bg=RED,
             fg=TXT,
             activebackground=RED_DARK,
@@ -71,7 +78,7 @@ class HR7ScannerGUI:
 
         self.status = tk.Label(
             controls,
-            text=f"Target: {DEFAULT_TARGET}",
+            text=f"Target: {self.target}",
             fg="#aaaaaa",
             bg=BG,
             font=("Consolas", 10)
@@ -142,42 +149,59 @@ class HR7ScannerGUI:
             i += 1
             time.sleep(0.1)
 
-    # ===== Scan process =====
+    # ===== Scan control =====
+    def toggle_scan(self):
+        if not self.scanning:
+            self.start_scan()
+        else:
+            self.stop_scan_process()
+
     def start_scan(self):
-        self.scan_btn.config(state="disabled")
+        self.scanning = True
+        self.scan_btn.config(text="STOP SCANNING", bg=RED_DARK)
+
         self.listbox.delete(0, tk.END)
         self.output.delete("1.0", tk.END)
 
         self.devices = []
         self.stop_loading.clear()
+        self.stop_scan.clear()
 
-        # تشغيل loading
         threading.Thread(target=self.loading_animation, daemon=True).start()
-
-        # تشغيل الفحص
         threading.Thread(target=self.run_scan, daemon=True).start()
 
-    def run_scan(self):
-        self.devices = scan_network(DEFAULT_TARGET)
+    def stop_scan_process(self):
+        self.stop_scan.set()
+        self.stop_loading.set()
+        self.status.config(text="Scan stopped by user")
+        self.scan_btn.config(text="SCAN NETWORK", bg=RED)
+        self.scanning = False
 
-        for d in self.devices:
+    def run_scan(self):
+        results = scan_network(self.target)
+
+        for d in results:
+            if self.stop_scan.is_set():
+                break
+
             ports = scan_ports(d["ip"])
             os_name = detect_os(ports)
 
             d["ports"] = ports
             d["os"] = os_name
+            self.devices.append(d)
 
             self.listbox.insert(tk.END, f"{d['ip']}  |  {d['mac']}")
 
-        save_scan_report(self.devices)
-
-        # إيقاف loading
         self.stop_loading.set()
+        self.scanning = False
+
+        self.scan_btn.config(text="SCAN NETWORK", bg=RED)
 
         self.status.config(text=f"Found {len(self.devices)} devices")
-        self.scan_btn.config(state="normal")
 
         if self.devices:
+            save_scan_report(self.devices)
             self.listbox.selection_set(0)
             self.listbox.event_generate("<<ListboxSelect>>")
 
